@@ -1,50 +1,44 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { View, Text, Alert } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
+import notifee from '@notifee/react-native';
+import NotificationService from './src/Notification';
 
-const App = () => {
-
-  async function requestUserPermission() {
-    const authStatus = await messaging().requestPermission();
-    const enabled =
-      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
-    if (enabled) {
-      console.log('Authorization status:', authStatus);
-    }
-  }
-
-  const getToken = async () => {
-    const token = await messaging().getToken()
-    console.log("Token =", token)
-
-  }
-
+export default function App() {
   useEffect(() => {
-    requestUserPermission()
-    getToken()
-  }, [])
+    // Request notification permissions
+    const requestPermissions = async () => {
+      const authStatus = await messaging().requestPermission();
+      const enabled =
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+      if (enabled) {
+        console.log('Notification permissions granted.');
+        NotificationService.getFcmToken(); // Fetch the FCM token
+      }
+    };
+
+    requestPermissions();
+
+    // Foreground notification handler
+    const unsubscribeOnMessage = messaging().onMessage(async (remoteMessage) => {
+      console.log('Message received in foreground:', remoteMessage);
+      await notifee.displayNotification({
+        title: remoteMessage.notification?.title,
+        body: remoteMessage.notification?.body,
+        android: {
+          channelId: 'default',
+        },
+      });
+    });
+
+    return unsubscribeOnMessage;
+  }, []);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Hello, World!</Text>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+      <Text >React Native Push Notifications</Text>
     </View>
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-});
-
-export default App;
+}
